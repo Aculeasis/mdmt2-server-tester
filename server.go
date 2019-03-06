@@ -28,7 +28,6 @@ func (server *Server) makeServer() {
 	}
 	fmt.Println("GO!")
 	fmt.Println("")
-	server.wg.Add(1)
 }
 
 // RunForever Server method
@@ -66,10 +65,7 @@ func (server *Server) loop() {
 }
 
 func (server *Server) run() {
-	defer func() {
-		server.srv.Close()
-		server.wg.Done()
-	}()
+	defer server.srv.Close()
 	for server.work {
 		if c, err := server.srv.Accept(); err != nil {
 			if server.work {
