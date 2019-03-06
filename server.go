@@ -14,36 +14,55 @@ type Server struct {
 	wg      sync.WaitGroup
 	connect bool
 	work    bool
+	restart bool
 	con     net.Conn
 	parser  Parser
 	srv     net.Listener
 	args    *argParse
 }
 
-// RunForever Server method
-func (server *Server) RunForever() {
-	server.parser = Parser{token: server.args.token}
-
+func (server *Server) makeServer() {
 	var err error
 	if server.srv, err = net.Listen("tcp", server.args.Address()); err != nil {
-		fmt.Print("Critical error: ")
-		fmt.Println(err)
-		return
+		panic(err)
 	}
 	fmt.Println("GO!")
 	fmt.Println("")
-	server.work = true
 	server.wg.Add(1)
-	go server.run()
+}
 
-	defer server.join()
-	shell := Shell{server, false}
+// RunForever Server method
+func (server *Server) RunForever() {
+	server.parser = Parser{token: server.args.token}
+	server.makeServer()
+	server.work = true
+	go server.loop()
+	shell := Shell{srv: server}
 	shell.RunForever()
 	server.join()
 }
 
 func (server *Server) join() {
 	server.wg.Wait()
+}
+
+func (server *Server) loop() {
+	server.wg.Add(1)
+	defer server.wg.Done()
+	for {
+		server.run()
+		if server.restart {
+			server.work = true
+			server.restart = false
+			server.args.HelloServer()
+			server.makeServer()
+		} else {
+			break
+		}
+	}
+	fmt.Println("")
+	fmt.Println("BYE!")
+	fmt.Println("")
 }
 
 func (server *Server) run() {
@@ -65,9 +84,6 @@ func (server *Server) run() {
 
 		}
 	}
-	fmt.Println("")
-	fmt.Println("BYE!")
-	fmt.Println("")
 }
 
 func (server *Server) connParser() {
@@ -105,6 +121,11 @@ func (server *Server) Exit() {
 	server.work = false
 	server.Close()
 	server.srv.Close()
+}
+
+func (server *Server) reload() {
+	server.restart = true
+	server.Exit()
 }
 
 // Send Server method

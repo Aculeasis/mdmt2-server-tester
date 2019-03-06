@@ -25,6 +25,10 @@ func (args *argParse) Address() string {
 }
 
 func (args *argParse) Hello() {
-	fmt.Printf("Server %s\n", args.Address())
+	args.HelloServer()
 	fmt.Printf("token: %s\n\n", args.token)
+}
+
+func (args *argParse) HelloServer() {
+	fmt.Printf("Server %s\n", args.Address())
 }
