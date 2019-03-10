@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
-	"net/textproto"
 	"sync"
 )
 
@@ -15,7 +13,7 @@ type Server struct {
 	connect bool
 	work    bool
 	restart bool
-	con     net.Conn
+	con     anySocket
 	parser  Parser
 	srv     net.Listener
 	args    *argParse
@@ -73,8 +71,14 @@ func (server *Server) run() {
 			}
 		} else {
 			fmt.Printf("Connected %s ...\n", c.RemoteAddr())
-			server.con = c
-			server.connParser()
+
+			server.con, err = makeSocket(c)
+			if err == nil {
+				server.connParser()
+			} else {
+				fmt.Printf("Connection %s error: %v\n", c.RemoteAddr(), err)
+				c.Close()
+			}
 			fmt.Printf("Disconnected %s.\n\n", c.RemoteAddr())
 			server.con = nil
 
@@ -86,10 +90,8 @@ func (server *Server) connParser() {
 	defer server.Close()
 	server.connect = true
 	server.parser.stage = 0
-	reader := bufio.NewReader(server.con)
-	tp := textproto.NewReader(reader)
 	for server.connect && server.work {
-		if line, err := tp.ReadLine(); err != nil {
+		if line, err := server.con.read(); err != nil {
 			if server.connect {
 				fmt.Printf("Read error: %s\n", err)
 			}
@@ -108,7 +110,7 @@ func (server *Server) Close() {
 	defer server.mutex.Unlock()
 	server.mutex.Lock()
 	if server.con != nil {
-		server.con.Close()
+		server.con.close()
 	}
 }
 
@@ -126,25 +128,15 @@ func (server *Server) reload() {
 
 // Send Server method
 func (server *Server) Send(line string) {
-	buffer := []byte(line + "\r\n")
-	bufferLen := len(buffer)
-	count := 0
-
-	if !server.connect {
+	defer server.mutex.Unlock()
+	server.mutex.Lock()
+	if !server.connect || server.con == nil {
 		fmt.Println("send -> no clients")
 		return
 	}
-	defer server.mutex.Unlock()
-	server.mutex.Lock()
-	for count < bufferLen {
-		if !server.connect {
-			return
-		} else if send, err := server.con.Write(buffer[count:]); err != nil {
-			fmt.Printf("Sending error: %s\n", err)
-			return
-		} else {
-			count += send
-		}
+	if err := server.con.write(line); err != nil {
+		fmt.Printf("Sending error: %s\n", err)
+		return
 	}
 	fmt.Printf("send -> %s\n", line)
 }

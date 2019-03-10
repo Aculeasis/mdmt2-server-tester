@@ -109,6 +109,9 @@ type Parser struct {
 // Parse parser
 func (parser *Parser) Parse(line string) (string, bool) {
 	fmt.Printf("recv <- %s\n", line)
+	if parser.stage > 2 {
+		return "", false
+	}
 	if any, err := parseAny(line); err != nil {
 		message := fmt.Sprintf("Wrong JSON: %v", err)
 		fmt.Println(message)

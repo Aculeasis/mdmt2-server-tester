@@ -62,43 +62,57 @@ func (shell *Shell) RunForever() {
 }
 
 func (shell *Shell) parseLine(text string) {
-	if text == "help" {
+	var cmd, value string
+	splitted := strings.SplitN(text, " ", 2)
+	cmd = splitted[0]
+	isValue := len(splitted) == 2 && splitted[1] != ""
+	if isValue {
+		value = splitted[1]
+		if value == " " {
+			value = ""
+		}
+	}
+	if cmd == "help" {
 		shell.usage()
-	} else if text == "close" {
+	} else if cmd == "close" {
 		shell.srv.Close()
-	} else if text == "exit" {
+	} else if cmd == "exit" {
 		shell.work = false
-	} else if text == "ping" {
+	} else if cmd == "ping" {
 		if ping, ok := makePingRequest(); ok {
 			shell.srv.Send(ping)
 		}
 
-	} else if text == "port" {
-		fmt.Printf("Current port: \"%d\"\n", shell.srv.args.port)
-	} else if strings.HasPrefix(text, "port ") {
-		port := strings.SplitN(text, " ", 2)[1]
-		if portUint, err := strconv.ParseUint(port, 10, 16); err != nil {
-			fmt.Printf("Wrong port \"%s\": \"%v\"\n", port, err)
+	} else if cmd == "port" {
+		if !isValue {
+			fmt.Printf("Current port: \"%d\"\n", shell.srv.args.port)
+		} else if portUint, err := strconv.ParseUint(value, 10, 16); err != nil {
+			fmt.Printf("Wrong port \"%s\": \"%v\"\n", value, err)
 		} else {
 			shell.srv.args.port = uint(portUint)
 			fmt.Printf("New port: \"%d\"\n", shell.srv.args.port)
 			shell.srv.reload()
 		}
-
-	} else if text == "ip" {
-		fmt.Printf("Current ip: \"%s\"\n", shell.srv.args.ip)
-	} else if strings.HasPrefix(text, "ip ") {
-		shell.srv.args.ip = strings.SplitN(text, " ", 2)[1]
-		fmt.Printf("New ip: \"%s\"\n", shell.srv.args.ip)
-		shell.srv.reload()
-
-	} else if text == "token" {
-		fmt.Printf("Current token: \"%s\"\n", shell.srv.parser.token)
-	} else if strings.HasPrefix(text, "token ") {
-		shell.srv.parser.token = strings.SplitN(text, " ", 2)[1]
-		fmt.Printf("New token: \"%s\"\n", shell.srv.parser.token)
-
+	} else if cmd == "ip" {
+		if !isValue {
+			fmt.Printf("Current ip: \"%s\"\n", shell.srv.args.ip)
+		} else {
+			shell.srv.args.ip = value
+			fmt.Printf("New ip: \"%s\"\n", shell.srv.args.ip)
+			shell.srv.reload()
+		}
+	} else if cmd == "token" {
+		if !isValue {
+			fmt.Printf("Current token: \"%s\"\n", shell.srv.parser.token)
+		} else {
+			shell.srv.parser.token = value
+			fmt.Printf("New token: \"%s\"\n", shell.srv.parser.token)
+		}
 	} else {
+		if cmd == "remote_log" {
+			shell.srv.parser.stage = 3
+			text = cmd
+		}
 		shell.srv.Send(text)
 	}
 }
