@@ -23,20 +23,20 @@ type webSocket struct {
 	closer func() error
 }
 
-func (wss *webSocket) read() (s string, err error) {
+func (wss *webSocket) read() (string, error) {
 	var data []byte
+	var err error
 	if data, err = wsutil.ReadClientText(wss.rw); err != nil {
-		return
+		return "", err
 	}
-	s = string(data)
-	return
+	return string(data), nil
 }
 
-func (wss *webSocket) write(s string) (err error) {
-	if err = wsutil.WriteServerText(wss.rw, []byte(s)); err == nil {
-		err = wss.rw.Flush()
+func (wss *webSocket) write(s string) error {
+	if err := wsutil.WriteServerText(wss.rw, []byte(s)); err != nil {
+		return err
 	}
-	return
+	return wss.rw.Flush()
 }
 
 func (wss *webSocket) close() error {
@@ -64,11 +64,11 @@ func (tcp *tcpSocket) read() (s string, err error) {
 	return tcp.tpr.ReadLine()
 }
 
-func (tcp *tcpSocket) write(s string) (err error) {
-	if _, err = tcp.rw.WriteString(s + "\r\n"); err == nil {
-		err = tcp.rw.Flush()
+func (tcp *tcpSocket) write(s string) error {
+	if _, err := tcp.rw.WriteString(s + "\r\n"); err != nil {
+		return err
 	}
-	return
+	return tcp.rw.Flush()
 }
 
 func (tcp *tcpSocket) close() error {
@@ -81,6 +81,7 @@ func makeSocket(conn net.Conn) (anySocket, error) {
 	makeWebSocket := func() (anySocket, error) {
 		_, err := ws.Upgrade(rw)
 		if err != nil {
+			conn.Write([]byte(fmt.Sprintf("%v\r\n\r\n", err)))
 			return nil, err
 		}
 		fmt.Println("Upgrade: TCPSocket -> WebSocket")

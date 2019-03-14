@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"sync"
+
+	"github.com/gobwas/ws/wsutil"
 )
 
 // Server class
@@ -92,7 +94,7 @@ func (server *Server) connParser() {
 	server.parser.stage = 0
 	for server.connect && server.work {
 		if line, err := server.con.read(); err != nil {
-			if server.connect {
+			if _, ok := err.(wsutil.ClosedError); !ok && server.connect {
 				fmt.Printf("Read error: %s\n", err)
 			}
 			return
