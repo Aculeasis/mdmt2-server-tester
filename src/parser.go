@@ -108,7 +108,13 @@ type Parser struct {
 
 // Parse parser
 func (parser *Parser) Parse(line string) (string, bool) {
-	fmt.Printf("recv <- %s\n", line)
+	lenLine := len(line)
+	if lenLine < 250 {
+		fmt.Printf("recv <- %s\n", line)
+	} else {
+		fmt.Printf("recv <- %d bytes\n", lenLine)
+	}
+
 	if parser.stage > 2 {
 		return "", false
 	}
